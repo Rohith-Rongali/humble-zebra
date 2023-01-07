@@ -6,8 +6,8 @@ from torchmetrics import MaxMetric, MeanMetric
 from torchmetrics.classification.accuracy import Accuracy
 
 
-class MNISTLitModule(LightningModule):
-    """Example of LightningModule for MNIST classification.
+class MainModule(LightningModule):
+    """Example of LightningModule for classification.
 
     A LightningModule organizes your PyTorch code into 6 sections:
         - Computations (init)
@@ -152,5 +152,5 @@ if __name__ == "__main__":
     import pyrootutils
 
     root = pyrootutils.setup_root(__file__, pythonpath=True)
-    cfg = omegaconf.OmegaConf.load(root / "configs" / "model" / "mnist.yaml")
+    cfg = omegaconf.OmegaConf.load(root / "configs" / "model" / "cifar.yaml")
     _ = hydra.utils.instantiate(cfg)
