@@ -18,17 +18,19 @@ def ZerO_Init_on_matrix(matrix_tensor):
   
 
 def ZerO_Init_on_conv(matrix_tensor):
-    # Algorithm 1 in the paper.
+    # Algorithm 2 in the paper.
     
     m = matrix_tensor.size(0)
     n = matrix_tensor.size(1)
+    p = matrix_tensor.size(2)
     
     if m <= n:
-        init_matrix = torch.nn.init.eye_(torch.empty(m, n))
+        init_matrix = torch.nn.init.eye_(torch.empty(m, n)).expand(m,n,p,p)
     elif m > n:
         clog_m = math.ceil(math.log2(m))
         p = 2**(clog_m)
-        init_matrix = torch.nn.init.eye_(torch.empty(m, p)) @ (torch.tensor(hadamard(p)).float()/(2**(clog_m/2))) @ torch.nn.init.eye_(torch.empty(p, n))
+        intm = torch.nn.init.eye_(torch.empty(m, p)) @ (torch.tensor(hadamard(p)).float()/(2**(clog_m/2))) @ torch.nn.init.eye_(torch.empty(p, n))
+        init_matrix = intm.expand(m,n,p,p)
     
     return init_matrix  
 
@@ -116,16 +118,27 @@ class ResNet(nn.Module):
             if isinstance(m, nn.Linear):
                 m.weight.data = ZerO_Init_on_matrix(m.weight.data)
                 
+            elif isinstance(m, nn.Conv2d):
+                m.weight.data = ZerO_Init_on_conv(m.weight.data)
+        
         elif self.init == 'Partial_Identity':
             if isinstance(m, nn.Linear):
                 m.weight.data = Identity_Init_on_matrix(m.weight.data)
         
-        elif self.init == 'Random':
-            if isinstance(m, nn.Linear):
-                torch.nn.init.kaiming_normal_(m.weight)
+        elif self.init == 'Kaiming':
+            if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d):
+                torch.nn.init.kaiming_normal_(m.weight, mode='fan_in', nonlinearity='relu')
+                
+        elif self.init == 'Xavier':
+            if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d):
+                torch.nn.init.xavier_uniform_(m.weight, gain = torch.nn.init.calculate_gain('relu'))
                 
         if isinstance(m, nn.Linear) and m.bias is not None:
-            nn.init.constant_(m.bias, 0)    
+            nn.init.constant_(m.bias, 0)
+            
+        if isinstance(m, nn.BatchNorm2d):
+            m.weight.data.fill_(1)
+            m.bias.data.zero_()
 
   def _make_layer(self, block, dim, num_blocks, stride):
     strides = [stride] + [1]*(num_blocks-1)    
