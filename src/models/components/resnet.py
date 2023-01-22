@@ -1,6 +1,39 @@
 from torch import nn
 
+def ZerO_Init_on_matrix(matrix_tensor):
+    # Algorithm 1 in the paper.
+    
+    m = matrix_tensor.size(0)
+    n = matrix_tensor.size(1)
+    
+    if m <= n:
+        init_matrix = torch.nn.init.eye_(torch.empty(m, n))
+    elif m > n:
+        clog_m = math.ceil(math.log2(m))
+        p = 2**(clog_m)
+        init_matrix = torch.nn.init.eye_(torch.empty(m, p)) @ (torch.tensor(hadamard(p)).float()/(2**(clog_m/2))) @ torch.nn.init.eye_(torch.empty(p, n))
+    
+    return init_matrix
 
+  
+
+def ZerO_Init_on_conv(matrix_tensor):
+    # Algorithm 1 in the paper.
+    
+    m = matrix_tensor.size(0)
+    n = matrix_tensor.size(1)
+    
+    if m <= n:
+        init_matrix = torch.nn.init.eye_(torch.empty(m, n))
+    elif m > n:
+        clog_m = math.ceil(math.log2(m))
+        p = 2**(clog_m)
+        init_matrix = torch.nn.init.eye_(torch.empty(m, p)) @ (torch.tensor(hadamard(p)).float()/(2**(clog_m/2))) @ torch.nn.init.eye_(torch.empty(p, n))
+    
+    return init_matrix  
+
+  
+  
 class BasicBlock(nn.Module):
   expansion = 1
 
@@ -59,9 +92,10 @@ class ResNet(nn.Module):
       "resnet101": (Bottleneck, [3, 4, 23, 3]),
       "resnet152": (Bottleneck, [3, 8, 36, 3]),
   }
-  def __init__(self):
+  def __init__(self,init='ZerO'):
     super(ResNet, self).__init__()
     block, num_blocks = self.CONFIGS["resnet18"]
+    self.init = init
     self.in_dim = 64
     self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
     self.bn1 = nn.BatchNorm2d(64)
@@ -72,6 +106,26 @@ class ResNet(nn.Module):
     self.activ = nn.ReLU()
     self.avg = nn.AdaptiveAvgPool2d((1, 1))
     self.linear = nn.Linear(512*block.expansion, 10)
+    
+    self.apply(self._init_weights)
+    
+    
+    def _init_weights(self, m):
+        
+        if self.init == 'ZerO':
+            if isinstance(m, nn.Linear):
+                m.weight.data = ZerO_Init_on_matrix(m.weight.data)
+                
+        elif self.init == 'Partial_Identity':
+            if isinstance(m, nn.Linear):
+                m.weight.data = Identity_Init_on_matrix(m.weight.data)
+        
+        elif self.init == 'Random':
+            if isinstance(m, nn.Linear):
+                torch.nn.init.kaiming_normal_(m.weight)
+                
+        if isinstance(m, nn.Linear) and m.bias is not None:
+            nn.init.constant_(m.bias, 0)    
 
   def _make_layer(self, block, dim, num_blocks, stride):
     strides = [stride] + [1]*(num_blocks-1)    
