@@ -1,4 +1,8 @@
+from pytorch_lightning import Trainer
 from torch import nn
+import torch
+import math
+from scipy.linalg import hadamard
 
 def ZerO_Init_on_matrix(matrix_tensor):
     # Algorithm 1 in the paper.
@@ -23,15 +27,17 @@ def ZerO_Init_on_conv(matrix_tensor):
     m = matrix_tensor.size(0)
     n = matrix_tensor.size(1)
     p = matrix_tensor.size(2)
+
+    init_matrix = torch.zeros_like(matrix_tensor)
+    c = math.floor(p/2)
     
     if m <= n:
-        init_matrix = torch.nn.init.eye_(torch.empty(m, n)).expand(m,n,p,p)
+        init_matrix[:,:,c,c] = torch.nn.init.eye_(torch.empty(m, n))
     elif m > n:
         clog_m = math.ceil(math.log2(m))
         p = 2**(clog_m)
-        intm = torch.nn.init.eye_(torch.empty(m, p)) @ (torch.tensor(hadamard(p)).float()/(2**(clog_m/2))) @ torch.nn.init.eye_(torch.empty(p, n))
-        init_matrix = intm.expand(m,n,p,p)
-    
+        init_matrix[:,:,c,c] = torch.nn.init.eye_(torch.empty(m, p)) @ (torch.tensor(hadamard(p)).float()/(2**(clog_m/2))) @ torch.nn.init.eye_(torch.empty(p, n))
+          
     return init_matrix  
 
   
@@ -94,7 +100,7 @@ class ResNet(nn.Module):
       "resnet101": (Bottleneck, [3, 4, 23, 3]),
       "resnet152": (Bottleneck, [3, 8, 36, 3]),
   }
-  def __init__(self,init='ZerO'):
+  def __init__(self,init):
     super(ResNet, self).__init__()
     block, num_blocks = self.CONFIGS["resnet18"]
     self.init = init
@@ -109,36 +115,37 @@ class ResNet(nn.Module):
     self.avg = nn.AdaptiveAvgPool2d((1, 1))
     self.linear = nn.Linear(512*block.expansion, 10)
     
-    self.apply(self._init_weights)
+    if self.init is not None:
+        self.apply(self._init_weights)
     
     
-    def _init_weights(self, m):
-        
-        if self.init == 'ZerO':
-            if isinstance(m, nn.Linear):
-                m.weight.data = ZerO_Init_on_matrix(m.weight.data)
-                
-            elif isinstance(m, nn.Conv2d):
-                m.weight.data = ZerO_Init_on_conv(m.weight.data)
-        
-        elif self.init == 'Partial_Identity':
-            if isinstance(m, nn.Linear):
-                m.weight.data = Identity_Init_on_matrix(m.weight.data)
-        
-        elif self.init == 'Kaiming':
-            if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d):
-                torch.nn.init.kaiming_normal_(m.weight, mode='fan_in', nonlinearity='relu')
-                
-        elif self.init == 'Xavier':
-            if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d):
-                torch.nn.init.xavier_uniform_(m.weight, gain = torch.nn.init.calculate_gain('relu'))
-                
-        if isinstance(m, nn.Linear) and m.bias is not None:
-            nn.init.constant_(m.bias, 0)
+  def _init_weights(self, m):
+    
+    if self.init == 'ZerO':
+        if isinstance(m, nn.Linear):
+            m.weight.data = ZerO_Init_on_matrix(m.weight.data)
             
-        if isinstance(m, nn.BatchNorm2d):
-            m.weight.data.fill_(1)
-            m.bias.data.zero_()
+        elif isinstance(m, nn.Conv2d):
+            m.weight.data = ZerO_Init_on_conv(m.weight.data)
+    
+    elif self.init == 'Partial_Identity':
+        if isinstance(m, nn.Linear):
+            m.weight.data = Identity_Init_on_matrix(m.weight.data)
+    
+    elif self.init == 'Kaiming':
+        if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d):
+            torch.nn.init.kaiming_normal_(m.weight, mode='fan_in', nonlinearity='relu')
+            
+    elif self.init == 'Xavier':
+        if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d):
+            torch.nn.init.xavier_uniform_(m.weight, gain = torch.nn.init.calculate_gain('relu'))
+            
+    if isinstance(m, nn.Linear) and m.bias is not None:
+        nn.init.constant_(m.bias, 0)
+        
+    if isinstance(m, nn.BatchNorm2d):
+        m.weight.data.fill_(1)
+        m.bias.data.zero_()
 
   def _make_layer(self, block, dim, num_blocks, stride):
     strides = [stride] + [1]*(num_blocks-1)    
@@ -163,3 +170,4 @@ class ResNet(nn.Module):
 
 if __name__ == "__main__":
     _ = ResNet()
+
