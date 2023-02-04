@@ -100,7 +100,7 @@ class ResNet(nn.Module):
       "resnet101": (Bottleneck, [3, 4, 23, 3]),
       "resnet152": (Bottleneck, [3, 8, 36, 3]),
   }
-  def __init__(self,init='ZerO'):
+  def __init__(self,init):
     super(ResNet, self).__init__()
     block, num_blocks = self.CONFIGS["resnet18"]
     self.init = init
