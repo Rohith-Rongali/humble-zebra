@@ -44,7 +44,7 @@ def stable_rank(matrix_tensor):
     # computes the sum of the singular values of a matrix divided by maximum singular value.
     # this is a measure of the rank of the matrix.
     
-    u, s, v = torch.svd(matrix_tensor)
+    u, s, v = torch.svd(matrix_tensor[0,:,:,:])
     return torch.sum(s)/torch.max(s)
    
   
