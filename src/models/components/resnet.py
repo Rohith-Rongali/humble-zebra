@@ -168,10 +168,10 @@ class ResNet(nn.Module):
   def forward(self, x):
     out = self.activ(self.bn1(self.conv1(x)))
     out = self.layer1(out)
-    rank2 = stable_rank(self.layer1[1].conv1.weight).detach()
+    rank2 = stable_rank(self.layer1[1].conv1.weight).detach().cpu()
     self.ranks2.append(rank2)    
     out = self.layer2(out)
-    rank3 = stable_rank(self.layer2[0].conv1.weight).detach()
+    rank3 = stable_rank(self.layer2[0].conv1.weight).detach().cpu()
     self.ranks3.append(rank3)     
     out = self.layer3(out)
     out = self.layer4(out)
