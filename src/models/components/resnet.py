@@ -40,7 +40,13 @@ def ZerO_Init_on_conv(matrix_tensor):
           
     return init_matrix  
 
-  
+def stable_rank(matrix_tensor):
+    # computes the sum of the singular values of a matrix divided by maximum singular value.
+    # this is a measure of the rank of the matrix.
+    
+    u, s, v = torch.svd(matrix_tensor)
+    return torch.sum(s)/torch.max(s)
+   
   
 class BasicBlock(nn.Module):
   expansion = 1
@@ -117,6 +123,9 @@ class ResNet(nn.Module):
     
     if self.init is not None:
         self.apply(self._init_weights)
+
+    self.ranks2 = []
+    self.ranks3 = []
     
     
   def _init_weights(self, m):
@@ -159,7 +168,11 @@ class ResNet(nn.Module):
   def forward(self, x):
     out = self.activ(self.bn1(self.conv1(x)))
     out = self.layer1(out)
+    rank2 = stable_rank(self.layer1[1].conv1.weight).detach()
+    self.ranks2.append(rank2)    
     out = self.layer2(out)
+    rank3 = stable_rank(self.layer2[0].conv1.weight).detach()
+    self.ranks3.append(rank3)     
     out = self.layer3(out)
     out = self.layer4(out)
     out = self.avg(out)

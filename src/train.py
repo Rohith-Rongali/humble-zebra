@@ -1,5 +1,6 @@
 import pyrootutils
 
+
 root = pyrootutils.setup_root(
     search_from=__file__,
     indicator=[".git", "pyproject.toml"],
@@ -39,6 +40,8 @@ import pytorch_lightning as pl
 from omegaconf import DictConfig
 from pytorch_lightning import Callback, LightningDataModule, LightningModule, Trainer
 from pytorch_lightning.loggers import LightningLoggerBase
+import matplotlib.pyplot as plt
+import numpy
 
 from src import utils
 
@@ -111,6 +114,23 @@ def train(cfg: DictConfig) -> Tuple[dict, dict]:
 
     # merge train and test metrics
     metric_dict = {**train_metrics, **test_metrics}
+
+    x = range(len(model.net.ranks2))
+    y1 = model.net.ranks2
+    y2 = model.net.ranks3
+    plt.figure(figsize=(10, 5))
+    plt.plot(x, y1)
+    plt.xlabel('Epoch')
+    plt.ylabel('Rank')
+    plt.title('Rank of First Convolution Kernel of Second Block')
+    plt.savefig('rank2.png')
+    plt.figure(figsize=(10, 5))
+    plt.plot(x, y2)
+    plt.xlabel('Epoch')
+    plt.ylabel('Rank')
+    plt.title('Rank of First Convolution Kernel of Third Block')
+    plt.savefig('rank3.png')
+    plt.show()
 
     return metric_dict, object_dict
 
